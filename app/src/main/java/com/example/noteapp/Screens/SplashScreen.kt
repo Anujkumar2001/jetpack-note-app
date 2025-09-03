@@ -42,7 +42,7 @@ fun SplashScreen(modifier: Modifier = Modifier, navController: NavController) {
             contentAlignment = Alignment.Center // ✅ Centers the image
         ) {
             Image(
-                painter = painterResource(id = R.drawable.whatsapp),
+                painter = painterResource(id = R.drawable.note),
                 contentDescription = "logo",
                 modifier = Modifier.size(150.dp)
             )
