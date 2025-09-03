@@ -1,14 +1,8 @@
 package com.example.noteapp.Screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -16,24 +10,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -43,27 +27,28 @@ import com.example.noteapp.navigation.Routes
 import com.example.noteapp.ui.theme.colorBlack
 import com.google.firebase.firestore.FirebaseFirestore
 
-
 @Composable
 fun NoteScreen(navController: NavController) {
-    val db= FirebaseFirestore.getInstance()
-    val notes=db.collection("note")
-    val notesList= remember{mutableStateListOf<Notes>()}
-    val loading = remember{ mutableStateOf(true) }
+    val db = FirebaseFirestore.getInstance()
+    val notesCollection = db.collection("note")
+    val notesList = remember { mutableStateListOf<Notes>() }
+    val loading = remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        notes.addSnapshotListener { value, error ->
+        notesCollection.addSnapshotListener { value, error ->
             loading.value = true
             if (error == null) {
-                val data = value?.toObjects(Notes::class.java)
-                notesList.clear() // Clear the list before adding new data
-                if (data != null) { // Check if data is NOT null
-                    notesList.addAll(data)
-                    loading.value = false
+                notesList.clear()
+                value?.documents?.forEach { doc ->
+                    val note = doc.toObject(Notes::class.java)
+                    note?.id = doc.id
+                    if (note != null) {
+                        notesList.add(note)
+                    }
                 }
+                loading.value = false
             } else {
-                // Handle the error case
-                notesList.clear() // Optionally clear the list on error too
+                notesList.clear()
                 loading.value = false
             }
         }
@@ -78,19 +63,9 @@ fun NoteScreen(navController: NavController) {
                 shape = CircleShape,
                 containerColor = Color.Red,
                 contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 10.dp,
-                    hoveredElevation = 8.dp,
-                    focusedElevation = 8.dp
-                ),
-                modifier = Modifier.padding(16.dp) // Adds some margin around the FAB
+                modifier = Modifier.padding(16.dp)
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Note",
-                    modifier = Modifier.size(24.dp) // Example: Set a specific size for the icon
-                )
+                Icon(Icons.Default.Add, contentDescription = "Add Note")
             }
         }
     ) { innerPadding ->
@@ -102,39 +77,40 @@ fun NoteScreen(navController: NavController) {
                 .padding(10.dp)
         ) {
             Text(
-                text = "welcome to note app",
+                text = "Welcome to Note App",
                 style = TextStyle(
                     color = Color.White,
-                    fontSize = 40.sp,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Bold
                 )
             )
-           if(loading.value){
-               Box(modifier = Modifier.fillMaxSize()){
-                   CircularProgressIndicator(
-                       modifier = Modifier.align(Alignment.Center),
-                       color = Color.White
-                   )
-               }
-           }
+
+            if (loading.value) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.White
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
+
             LazyColumn {
                 items(notesList) { note ->
-                    ListItem(notes = note)
+                    ListItem(note, navController)
                 }
             }
         }
     }
 }
 
-@Preview
 @Composable
-fun NoteScreenPreview() {
-    NoteScreen(navController = rememberNavController())
-}
+fun ListItem(note: Notes, navController: NavController) {
+    var expanded by remember { mutableStateOf(false) }
+    val db = FirebaseFirestore.getInstance()
+    val dbRef = db.collection("note")
 
-@Composable
-fun ListItem(notes: Notes) {
     Box(
         modifier = Modifier
             .padding(5.dp)
@@ -143,19 +119,40 @@ fun ListItem(notes: Notes) {
             .fillMaxWidth()
             .padding(10.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.MoreVert,
-            contentDescription = "Menu", // Changed "Add" to "Menu" for MoreVert icon
-            tint = Color.White,
-            modifier = Modifier.align(Alignment.TopEnd)
-        )
+        // Menu
+        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "Menu",
+                tint = Color.White,
+                modifier = Modifier.clickable { expanded = true }
+            )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Update") },
+                    onClick = {
+                        expanded = false
+                        navController.navigate("${Routes.INSERT_NOTE_SCREEN}/${note.id}")
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = {
+                        dbRef.document(note.id).delete()
+                        expanded = false
+                    }
+                )
+            }
+        }
+
         Column {
-            Text(text = notes.title, color = Color.White, fontWeight = FontWeight.Bold)
-
-            // To add a gap of, for example, 8.dp between the title and description:
-            Spacer(modifier = Modifier.height(8.dp)) // Set the desired height for the gap
-
-            Text(text = notes.description, color = Color.LightGray)
+            Text(text = note.title, color = Color.White, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = note.description, color = Color.LightGray)
         }
     }
 }

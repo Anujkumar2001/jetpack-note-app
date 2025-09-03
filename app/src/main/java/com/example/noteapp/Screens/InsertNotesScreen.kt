@@ -12,60 +12,72 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.example.noteapp.Models.Notes
+import androidx.navigation.NavBackStackEntry
 import com.example.noteapp.navigation.Routes
 import com.example.noteapp.ui.theme.colorBlack
-import com.example.noteapp.ui.theme.colorGray
 import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsertNotesScreen(navController: NavController) {
+fun InsertNotesScreen(navController: NavController, backStackEntry: NavBackStackEntry) {
+    val noteId = backStackEntry.arguments?.getString("noteId") // will be null for new note
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var isUpdate by remember { mutableStateOf(false) }
+
+    val db = FirebaseFirestore.getInstance()
+    val notesCollection = db.collection("note")
+
+    // If editing, fetch note data
+    LaunchedEffect(noteId) {
+        if (noteId != null) {
+            isUpdate = true
+            notesCollection.document(noteId).get().addOnSuccessListener { doc ->
+                title = doc.getString("title") ?: ""
+                description = doc.getString("description") ?: ""
+            }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // Save the note to Firebase
                     if (title.isNotEmpty() && description.isNotEmpty()) {
-                        val db = FirebaseFirestore.getInstance()
-                        val notesCollection = db.collection("notes")
-                        
-                        val note = Notes(title, description)
-                        notesCollection.add(note)
-                            .addOnSuccessListener {
-                                // Navigate back after successful save
-                                navController.navigate(Routes.NOTE_SCREEN) {
-                                    popUpTo(Routes.NOTE_SCREEN) { inclusive = true }
+                        val note = hashMapOf(
+                            "title" to title,
+                            "description" to description
+                        )
+
+                        if (isUpdate && noteId != null) {
+                            // Update existing note
+                            notesCollection.document(noteId).set(note)
+                                .addOnSuccessListener {
+                                    navController.navigate(Routes.NOTE_SCREEN) {
+                                        popUpTo(Routes.NOTE_SCREEN) { inclusive = true }
+                                    }
                                 }
-                            }
-                            .addOnFailureListener { e ->
-                                // Handle failure
-                                println("Error adding note: ${e.message}")
-                            }
+                        } else {
+                            // Add new note
+                            notesCollection.add(note)
+                                .addOnSuccessListener {
+                                    navController.navigate(Routes.NOTE_SCREEN) {
+                                        popUpTo(Routes.NOTE_SCREEN) { inclusive = true }
+                                    }
+                                }
+                        }
                     }
                 },
                 shape = CircleShape,
                 containerColor = Color.Red,
                 contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 10.dp
-                ),
                 modifier = Modifier.padding(16.dp)
             ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Save Note",
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(Icons.Default.Check, contentDescription = "Save Note")
             }
         }
     ) { innerPadding ->
@@ -77,10 +89,10 @@ fun InsertNotesScreen(navController: NavController) {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Insert Data",
+                text = if (isUpdate) "Update Note" else "Insert Note",
                 style = TextStyle(
                     color = Color.White,
-                    fontSize = 32.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -90,9 +102,7 @@ fun InsertNotesScreen(navController: NavController) {
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("Title", color = Color.Gray) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 textStyle = TextStyle(color = Color.White),
                 shape = RoundedCornerShape(8.dp),
                 colors = TextFieldDefaults.colors(
@@ -100,22 +110,15 @@ fun InsertNotesScreen(navController: NavController) {
                     unfocusedContainerColor = colorBlack,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedLabelColor = Color.Gray,
-                    unfocusedLabelColor = Color.Gray,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color.Gray,
-                    unfocusedIndicatorColor = Color.Gray
+                    cursorColor = Color.White
                 )
             )
 
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Enter description", color = Color.Gray) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .heightIn(min = 300.dp, max = 250.dp), // 👈 grows between 100dp and 250dp
+                label = { Text("Description", color = Color.Gray) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).heightIn(min = 100.dp),
                 textStyle = TextStyle(color = Color.White),
                 shape = RoundedCornerShape(8.dp),
                 colors = TextFieldDefaults.colors(
@@ -123,22 +126,11 @@ fun InsertNotesScreen(navController: NavController) {
                     unfocusedContainerColor = colorBlack,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedLabelColor = Color.Gray,
-                    unfocusedLabelColor = Color.Gray,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color.Gray,
-                    unfocusedIndicatorColor = Color.Gray
+                    cursorColor = Color.White
                 ),
-                singleLine = false,   // 👈 allows multi-line input
-                maxLines = Int.MAX_VALUE // 👈 so text can grow until max height
+                singleLine = false,
+                maxLines = Int.MAX_VALUE
             )
-
         }
     }
-}
-
-@Preview
-@Composable
-fun InsertNotesScreenPreview() {
-    InsertNotesScreen(navController = rememberNavController())
 }

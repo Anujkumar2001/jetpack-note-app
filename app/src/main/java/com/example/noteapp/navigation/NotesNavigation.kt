@@ -20,9 +20,13 @@ fun NoteNavigation(navHostController: NavHostController) {
         composable(Routes.NOTE_SCREEN) {
             NoteScreen(navController = navHostController)
         }
-        composable(Routes.INSERT_NOTE_SCREEN) {
-            InsertNotesScreen(navController = navHostController)
+        // ✅ New Note
+        composable(Routes.INSERT_NOTE_SCREEN) { backStackEntry ->
+            InsertNotesScreen(navController = navHostController, backStackEntry = backStackEntry)
+        }
+        // ✅ Update Note with id
+        composable("${Routes.INSERT_NOTE_SCREEN}/{noteId}") { backStackEntry ->
+            InsertNotesScreen(navController = navHostController, backStackEntry = backStackEntry)
         }
     }
 }
-
