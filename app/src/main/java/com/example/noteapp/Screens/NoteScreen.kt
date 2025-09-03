@@ -16,12 +16,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,18 +41,33 @@ import androidx.navigation.compose.rememberNavController
 import com.example.noteapp.Models.Notes
 import com.example.noteapp.navigation.Routes
 import com.example.noteapp.ui.theme.colorBlack
+import com.google.firebase.firestore.FirebaseFirestore
 
 
 @Composable
 fun NoteScreen(navController: NavController) {
-    val dummyNotes = listOf(
-        Notes(title = "Shopping List", discription = "Buy milk, eggs, and bread"),
-        Notes(title = "Workout Plan", discription = "Run 5km and do yoga"),
-        Notes(title = "Project Ideas", discription = "Build a note-taking app in Jetpack Compose"),
-        Notes(title = "Travel Plans", discription = "Visit Paris and Rome next summer"),
-        Notes(title = "Workout Plan", discription = "Run 5km and do yoga"),
-        Notes(title = "Project Ideas", discription = "Build a note-taking app in Jetpack Compose"),
-    )
+    val db= FirebaseFirestore.getInstance()
+    val notes=db.collection("note")
+    val notesList= remember{mutableStateListOf<Notes>()}
+    val loading = remember{ mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        notes.addSnapshotListener { value, error ->
+            loading.value = true
+            if (error == null) {
+                val data = value?.toObjects(Notes::class.java)
+                notesList.clear() // Clear the list before adding new data
+                if (data != null) { // Check if data is NOT null
+                    notesList.addAll(data)
+                    loading.value = false
+                }
+            } else {
+                // Handle the error case
+                notesList.clear() // Optionally clear the list on error too
+                loading.value = false
+            }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -89,9 +109,17 @@ fun NoteScreen(navController: NavController) {
                     fontWeight = FontWeight.Bold
                 )
             )
+           if(loading.value){
+               Box(modifier = Modifier.fillMaxSize()){
+                   CircularProgressIndicator(
+                       modifier = Modifier.align(Alignment.Center),
+                       color = Color.White
+                   )
+               }
+           }
             Spacer(modifier = Modifier.height(8.dp))
             LazyColumn {
-                items(dummyNotes) { note ->
+                items(notesList) { note ->
                     ListItem(notes = note)
                 }
             }
@@ -127,7 +155,7 @@ fun ListItem(notes: Notes) {
             // To add a gap of, for example, 8.dp between the title and description:
             Spacer(modifier = Modifier.height(8.dp)) // Set the desired height for the gap
 
-            Text(text = notes.discription, color = Color.LightGray)
+            Text(text = notes.description, color = Color.LightGray)
         }
     }
 }

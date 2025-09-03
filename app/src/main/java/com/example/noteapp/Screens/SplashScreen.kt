@@ -26,7 +26,7 @@ import kotlinx.coroutines.delay
 fun SplashScreen(modifier: Modifier = Modifier, navController: NavController) {
     // Navigate to the Note screen after a delay
     LaunchedEffect(key1 = true) {
-        delay(2000) // 2 seconds delay
+        delay(2000) 
         navController.navigate(Routes.NOTE_SCREEN) {
             // Remove the splash screen from the back stack
             popUpTo(Routes.SPLASH_SCREEN) { inclusive = true }

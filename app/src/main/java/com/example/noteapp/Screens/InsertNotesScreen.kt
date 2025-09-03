@@ -17,9 +17,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.noteapp.Models.Notes
 import com.example.noteapp.navigation.Routes
 import com.example.noteapp.ui.theme.colorBlack
 import com.example.noteapp.ui.theme.colorGray
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,9 +33,24 @@ fun InsertNotesScreen(navController: NavController) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // Here you would typically save the note to your database
-                    // After saving, navigate back to the notes screen
-                    navController.navigateUp()
+                    // Save the note to Firebase
+                    if (title.isNotEmpty() && description.isNotEmpty()) {
+                        val db = FirebaseFirestore.getInstance()
+                        val notesCollection = db.collection("notes")
+                        
+                        val note = Notes(title, description)
+                        notesCollection.add(note)
+                            .addOnSuccessListener {
+                                // Navigate back after successful save
+                                navController.navigate(Routes.NOTE_SCREEN) {
+                                    popUpTo(Routes.NOTE_SCREEN) { inclusive = true }
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                // Handle failure
+                                println("Error adding note: ${e.message}")
+                            }
+                    }
                 },
                 shape = CircleShape,
                 containerColor = Color.Red,
