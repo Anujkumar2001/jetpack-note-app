@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.hilt)
+    kotlin("kapt")
 }
 
 android {
@@ -53,6 +55,10 @@ dependencies {
     // Using only one navigation-compose dependency to avoid duplicates
     implementation(libs.androidx.navigation.compose)
     implementation(libs.firebase.firestore)
+    
+    // Hilt dependencies
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
